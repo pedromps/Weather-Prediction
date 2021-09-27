@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
 
 # code adapted from F. Chollet's book Deep Learning With Python
 fname = 'jena_climate_2009_2016.csv'
@@ -17,40 +20,58 @@ for i, line in enumerate(lines):
     float_data[i, :] = values
     
     
-mean = float_data[:200000].mean(axis=0)
+mean = float_data[:200000].mean(axis = 0)
 float_data -= mean
-std = float_data[:200000].std(axis=0)
+std = float_data[:200000].std(axis = 0)
 float_data /= std
 
-
-def generator(data, lookback, delay, min_index, max_index,
-    shuffle=False, batch_size=128, step=6):
-    if max_index is None:
-        max_index = len(data) - delay - 1
-    i = min_index + lookback
-    while 1:
-        if shuffle:
-            rows = np.random.randint(min_index + lookback, max_index, size=batch_size)
-        else:
-            if i + batch_size >= max_index:
-                i = min_index + lookback
-            rows = np.arange(i, min(i + batch_size, max_index))
-            i += len(rows)
-        samples = np.zeros((len(rows), lookback // step, data.shape[-1]))
-        targets = np.zeros((len(rows),))
-        for j, row in enumerate(rows):
-            indices = range(rows[j] - lookback, rows[j], step)
-            samples[j] = data[indices]
-            targets[j] = data[rows[j] + delay][1]
-    yield samples, targets
-    
-lookback = 1440
-step = 6
-delay = 144
+lookback = 720 # observations look back in 10 days
+step = 6 # one data point per hour
+delay = 144 # 24h
 batch_size = 128
 
-train_gen = generator(float_data, lookback = lookback, delay = delay, min_index = 0, max_index = 200000, shuffle = True, step = step, batch_size = batch_size)
-val_gen = generator(float_data, lookback = lookback, delay = delay, min_index = 200001, max_index = 300000, step = step, batch_size = batch_size)
-test_gen = generator(float_data, lookback = lookback, delay = delay, min_index = 300001, max_index = None, step = step, batch_size = batch_size)
-val_steps = (300000 - 200001 - lookback)
-test_steps = (len(float_data) - 300001 - lookback)
+
+def train_test_val_split(data, lookback, step):
+    # training data will be derived from the first sequences, validation from the 
+    # sequences following them and test following validation
+    size = len(data)
+    train_size = [0, int(0.7*size)-int(0.7*size)%lookback] #<- 408 sequences
+    val_size = [train_size[1], train_size[1]+int(0.2*size)-int(0.2*size)%lookback]
+    test_size = [val_size[1], val_size[1]+int(0.1*size)-int(0.1*size)%lookback]
+    
+    
+    st = train_size[1]-train_size[0]
+    aux = np.copy(data[train_size[0]:train_size[1]])
+    train = np.reshape(aux[::step], (int(st/lookback), int(lookback/step), data.shape[1]))
+    
+    sv = val_size[1]-val_size[0]
+    aux = np.copy(data[val_size[0]:val_size[1]])
+    val = np.reshape(aux[::step], (int(sv/lookback), int(lookback/step), data.shape[1]))
+    
+    stt = test_size[1]-test_size[0]
+    aux = np.copy(data[test_size[0]:test_size[1]])
+    test = np.reshape(aux[::step], (int(stt/lookback), int(lookback/step), data.shape[1]))
+
+    
+    return train, test, val
+
+
+train, test, val = train_test_val_split(float_data, lookback, step)
+
+
+model = Sequential()
+model.add(LSTM(32, activation = 'relu', input_shape = (train.shape[1], train.shape[2])))
+model.add(Dense(1, activation = 'relu'))
+model.compile(optimizer = "adam", loss = 'mae')
+model.summary()
+history = model.fit(train, epochs = 20, verbose = 1)#, validation_data = val)
+
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+epochs = range(1, len(loss) + 1)
+plt.figure()
+plt.plot(epochs, loss, 'bo', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.title('Training and validation loss')
+plt.legend()
+plt.show()
