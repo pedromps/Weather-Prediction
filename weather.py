@@ -24,14 +24,14 @@ norm_min = np.nanmin(float_data, axis = 0)
 float_data = (float_data-norm_min)/(norm_max-norm_min)
 
 
-lookback = 720 # observations look back in 10 days
+lookback = 720 # observations look back in 5 days
 step = 6 # one data point per hour
 delay = 144 # 24h
 batch_size = 128
 
 # temperature is the target
-target = float_data[:, 2]
-float_data = np.delete(float_data, 2, axis=1)
+target = float_data[:, 1]
+float_data = np.delete(float_data, 1, axis=1)
 
 def train_test_val_split(data, y, lookback, step):
     # training data will be derived from the first sequences, validation from the 
@@ -67,12 +67,13 @@ x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data
 
 
 model = Sequential()
-model.add(LSTM(128, activation = 'relu', input_shape = (x_train.shape[1], x_train.shape[2])))
+model.add(LSTM(128, activation = 'tanh', input_shape = (x_train.shape[1], x_train.shape[2]), return_sequences = True))
+model.add(LSTM(32, activation = 'tanh'))
 # model.add(TimeDistributed(Dense(train.shape[1], activation = 'relu')))
-model.add(Dense(x_train.shape[1]))
+model.add(Dense(x_train.shape[1], activation = 'relu'))
 model.compile(optimizer = "adam", loss = 'mse')
 model.summary()
-history = model.fit(x_train, y_train, epochs = 40, verbose = 1, batch_size = 256, validation_data = (x_val, y_val))
+history = model.fit(x_train, y_train, epochs = 100, verbose = 1, batch_size = 128, validation_data = (x_val, y_val))
 
 plt.figure()
 plt.plot(history.history['loss'], label='Training loss')
@@ -83,4 +84,7 @@ plt.show()
 
 temp_pred = model.predict(x_test)
 MSE = np.mean((y_test.ravel()-temp_pred.ravel())**2)
+denorm_MSE = MSE*(norm_max[1]-norm_min[1])+norm_min[1]
 
+print("Normalised MSE = {:.2f}".format(MSE))
+print("MSE = {:.2f}".format(denorm_MSE) + " degress")
