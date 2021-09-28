@@ -102,11 +102,16 @@ denorm_MSE = np.mean(((norm_max[1]-norm_min[1])*(y_test.ravel()-temp_pred.ravel(
 print("Normalised MSE = {:.6f}".format(MSE))
 print("MSE = {:.2f}".format(denorm_MSE) + " degress")
 
+denorm = temp_pred*(norm_max[1] - norm_min[1]) + norm_min[1]
+denorm_y = y_test*(norm_max[1] - norm_min[1]) + norm_min[1]
 # plotting predictions against the actual values
-fig, axs = plt.subplots(1, 2)
-# plt.title("Prediction vs Reality for Temperature(s)")
-axs[0, 0].plot(temp_pred[:,0])
-axs[0, 0].plot(y_test[:,0])
-axs[0, 1].plot(temp_pred[:,1])
-axs[0, 1].plot(y_test[:,1])
-plt.grid()
+fig, axs = plt.subplots(1, 2, sharex = True)
+axs[0].plot(denorm[:,0])
+axs[0].plot(denorm_y[:,0])
+axs[0].grid()
+axs[0].legend(["Min T", "Predicted Min T"], loc = 'best')
+axs[1].plot(denorm[:,1])
+axs[1].plot(denorm_y[:,1])
+axs[1].grid()
+axs[1].legend(["Max T", "Predicted Max T"], loc = 'best')
+plt.tight_layout()
