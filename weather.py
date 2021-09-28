@@ -71,11 +71,11 @@ def train_test_val_split(data, y, lookback, step, mode):
     return x_train, x_test, x_val, y_train, y_test, y_val
 
 
-x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step, "min")
+x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step, "max")
 
 
 model = Sequential()
-model.add(LSTM(128, activation = 'tanh', dropout = 0.2, input_shape = (x_train.shape[1], x_train.shape[2]), return_sequences = True))
+model.add(LSTM(128, activation = 'tanh', dropout = 0., input_shape = (x_train.shape[1], x_train.shape[2]), return_sequences = True))
 model.add(LSTM(32, activation = 'tanh'))
 model.add(Dense(y_train.shape[1], activation = 'relu'))
 model.compile(optimizer = "adam", loss = 'mse')
