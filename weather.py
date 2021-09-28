@@ -24,16 +24,14 @@ norm_min = np.nanmin(float_data, axis = 0)
 float_data = (float_data-norm_min)/(norm_max-norm_min)
 
 
-lookback = 720 # observations look back in 5 days
+lookback = 144 # observations look back in 5 days
 step = 6 # one data point per hour
-delay = 144 # 24h
-batch_size = 128
 
 # temperature is the target
 target = float_data[:, 1]
 float_data = np.delete(float_data, 1, axis=1)
 
-def train_test_val_split(data, y, lookback, step):
+def train_test_val_split(data, y, lookback, step, mode):
     # training data will be derived from the first sequences, validation from the 
     # sequences following them and test following validation
     size = len(data)
@@ -60,31 +58,41 @@ def train_test_val_split(data, y, lookback, step):
     x_test = np.reshape(aux[::step], (int(stt/lookback), int(lookback/step), data.shape[1]))
     y_test = np.reshape(aux_y[::step], (int(stt/lookback), int(lookback/step), 1))
     
+    if mode == "max":
+        y_train = np.max(y_train, axis = 1)
+        y_val = np.max(y_val, axis = 1)
+        y_test = np.max(y_test, axis = 1)
+        
+    if mode == "min":
+        y_train = np.min(y_train, axis = 1)
+        y_val = np.min(y_val, axis = 1)
+        y_test = np.min(y_test, axis = 1)
+        
     return x_train, x_test, x_val, y_train, y_test, y_val
 
 
-x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step)
+x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step, "min")
 
 
 model = Sequential()
-model.add(LSTM(128, activation = 'tanh', input_shape = (x_train.shape[1], x_train.shape[2]), return_sequences = True))
+model.add(LSTM(128, activation = 'tanh', dropout = 0.2, input_shape = (x_train.shape[1], x_train.shape[2]), return_sequences = True))
 model.add(LSTM(32, activation = 'tanh'))
-# model.add(TimeDistributed(Dense(train.shape[1], activation = 'relu')))
-model.add(Dense(x_train.shape[1], activation = 'relu'))
+model.add(Dense(y_train.shape[1], activation = 'relu'))
 model.compile(optimizer = "adam", loss = 'mse')
 model.summary()
-history = model.fit(x_train, y_train, epochs = 100, verbose = 1, batch_size = 128, validation_data = (x_val, y_val))
+history = model.fit(x_train, y_train, epochs = 40, verbose = 1, batch_size = 128, validation_data = (x_val, y_val))
 
 plt.figure()
 plt.plot(history.history['loss'], label='Training loss')
 plt.plot(history.history['val_loss'], label='Validation loss')
+plt.grid()
 plt.title('Training and validation loss')
 plt.legend()
 plt.show()
 
 temp_pred = model.predict(x_test)
 MSE = np.mean((y_test.ravel()-temp_pred.ravel())**2)
-denorm_MSE = MSE*(norm_max[1]-norm_min[1])+norm_min[1]
-
-print("Normalised MSE = {:.2f}".format(MSE))
+# denorm MSE = c^2 * MSE, c = (max-min)
+denorm_MSE = np.mean(((norm_max[1]-norm_min[1])*(y_test.ravel()-temp_pred.ravel()))**2)
+print("Normalised MSE = {:.6f}".format(MSE))
 print("MSE = {:.2f}".format(denorm_MSE) + " degress")
