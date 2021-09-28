@@ -68,10 +68,15 @@ def train_test_val_split(data, y, lookback, step, mode):
         y_val = np.min(y_val, axis = 1)
         y_test = np.min(y_test, axis = 1)
         
+    if mode == "minmax" or mode == "maxmin":
+        y_train = np.concatenate([np.min(y_train, axis = 1), np.max(y_train, axis = 1)], axis = 1) 
+        y_val = np.concatenate([np.min(y_val, axis = 1), np.max(y_val, axis = 1)], axis = 1) 
+        y_test = np.concatenate([np.min(y_test, axis = 1), np.max(y_test, axis = 1)], axis = 1)
+        
     return x_train, x_test, x_val, y_train, y_test, y_val
 
 
-x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step, "max")
+x_train, x_test, x_val, y_train, y_test, y_val = train_test_val_split(float_data, target, lookback, step, "minmax")
 
 
 model = Sequential()
@@ -96,3 +101,12 @@ MSE = np.mean((y_test.ravel()-temp_pred.ravel())**2)
 denorm_MSE = np.mean(((norm_max[1]-norm_min[1])*(y_test.ravel()-temp_pred.ravel()))**2)
 print("Normalised MSE = {:.6f}".format(MSE))
 print("MSE = {:.2f}".format(denorm_MSE) + " degress")
+
+# plotting predictions against the actual values
+fig, axs = plt.subplots(1, 2)
+# plt.title("Prediction vs Reality for Temperature(s)")
+axs[0, 0].plot(temp_pred[:,0])
+axs[0, 0].plot(y_test[:,0])
+axs[0, 1].plot(temp_pred[:,1])
+axs[0, 1].plot(y_test[:,1])
+plt.grid()
