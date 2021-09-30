@@ -88,8 +88,10 @@ plt.show()
 temp_pred = model.predict(x_test)
 # MAE = np.mean(np.abs(y_test.ravel()-temp_pred.ravel()))
 # denorm MSE = c^2 * MSE, c = (max-min)
-denorm_MAE = np.mean((norm_max[1]-norm_min[1])*np.abs(y_test.ravel()-temp_pred.ravel()))
+denorm_MAE_both = np.mean((norm_max[1]-norm_min[1])*np.abs(y_test-temp_pred), axis = 0)
+denorm_MAE =  np.mean((norm_max[1]-norm_min[1])*np.abs(y_test-temp_pred))
 print("MAE = {:.2f}".format(denorm_MAE) + " degres")
+print("Of which {:.2f} corresponds to the minimum temperature and {:.2f} corresponds to the maximum temperature errors".format(denorm_MAE_both[0], denorm_MAE_both[1]))
 
 denorm = temp_pred*(norm_max[1] - norm_min[1]) + norm_min[1]
 denorm_y = y_test*(norm_max[1] - norm_min[1]) + norm_min[1]
